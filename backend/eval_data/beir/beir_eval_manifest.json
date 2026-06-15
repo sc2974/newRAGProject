@@ -1,0 +1,29 @@
+{
+  "scifact": {
+    "dataset": "scifact",
+    "type": "scientific_claim",
+    "qrels": "E:\\AIProject\\data\\public\\beir\\scifact\\qrels\\test.tsv",
+    "cases": 300,
+    "corpus_documents": 1283,
+    "eval_path": "E:\\AIProject\\backend\\eval_data\\beir\\beir_scifact_eval_300.jsonl",
+    "corpus_path": "E:\\AIProject\\backend\\eval_data\\corpora\\beir_scifact_corpus.md"
+  },
+  "fiqa": {
+    "dataset": "fiqa",
+    "type": "financial_qa",
+    "qrels": "E:\\AIProject\\data\\public\\beir\\fiqa\\qrels\\test.tsv",
+    "cases": 500,
+    "corpus_documents": 2342,
+    "eval_path": "E:\\AIProject\\backend\\eval_data\\beir\\beir_fiqa_eval_500.jsonl",
+    "corpus_path": "E:\\AIProject\\backend\\eval_data\\corpora\\beir_fiqa_corpus.md"
+  },
+  "quora": {
+    "dataset": "quora",
+    "type": "semantic_question_match",
+    "qrels": "E:\\AIProject\\data\\public\\beir\\quora\\qrels\\test.tsv",
+    "cases": 500,
+    "corpus_documents": 2326,
+    "eval_path": "E:\\AIProject\\backend\\eval_data\\beir\\beir_quora_eval_500.jsonl",
+    "corpus_path": "E:\\AIProject\\backend\\eval_data\\corpora\\beir_quora_corpus.md"
+  }
+}

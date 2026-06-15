@@ -1,0 +1,16 @@
+{
+  "cmrc_cases": 1000,
+  "squad_cases": 1000,
+  "mixed_cases": 2000,
+  "similar_cases": 600,
+  "cmrc_contexts": 200,
+  "squad_contexts": 67,
+  "outputs": {
+    "cmrc": "E:\\AIProject\\backend\\eval_data\\cmrc2018_dev_eval_1000.jsonl",
+    "squad": "E:\\AIProject\\backend\\eval_data\\squad_v1_1_dev_eval_1000.jsonl",
+    "mixed": "E:\\AIProject\\backend\\eval_data\\mixed_zh_en_eval_2000.jsonl",
+    "similar": "E:\\AIProject\\backend\\eval_data\\similar_questions_eval_600.jsonl",
+    "cmrc_corpus": "E:\\AIProject\\backend\\eval_data\\corpora\\cmrc2018_dev_corpus.md",
+    "squad_corpus": "E:\\AIProject\\backend\\eval_data\\corpora\\squad_v1_1_dev_corpus.md"
+  }
+}

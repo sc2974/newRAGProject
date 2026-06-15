@@ -1,0 +1,2 @@
+{"id":"seed_zh_001","query":"广茂铁路全长多少公里？","answers":["364.6公里","364.6"],"expected_document":"cmrc-rag-sample.md","tags":["zh","fact","number"]}
+{"id":"seed_en_001","query":"Who was the Super Bowl 50 MVP?","answers":["Von Miller"],"expected_document":"squad-rag-sample.md","tags":["en","fact","person"]}

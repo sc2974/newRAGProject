@@ -1,0 +1,11 @@
+{
+  "scifact": {
+    "dataset": "scifact",
+    "type": "scientific_claim",
+    "qrels": "E:\\AIProject\\data\\public\\beir\\scifact\\qrels\\test.tsv",
+    "cases": 80,
+    "corpus_documents": 181,
+    "eval_path": "eval_data\\domain_scifact\\beir_scifact_eval_80.jsonl",
+    "corpus_path": "eval_data\\domain_scifact\\corpora\\beir_scifact_corpus.md"
+  }
+}
