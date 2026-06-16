@@ -11,7 +11,7 @@ from app.retrieval.rerank_policy import (
 from app.retrieval.reranker import KeywordOverlapReranker, SemanticCrossEncoderReranker
 from app.retrieval.vector_retriever import VectorRetriever
 from app.services.document_service import DocumentService
-from app.services.ollama_client import OllamaClient
+from app.services.llm_client import LLMClient
 from app.services.reranker_warmup import get_semantic_reranker
 from app.services.vector_store import VectorStore
 
@@ -19,7 +19,7 @@ from app.services.vector_store import VectorStore
 class RagService:
     def __init__(self) -> None:
         self._vector_store = VectorStore()
-        self._ollama_client = OllamaClient()
+        self._llm_client = LLMClient()
         self._document_service = DocumentService()
         self._keyword_reranker = KeywordOverlapReranker()
         self._semantic_reranker = get_semantic_reranker()
@@ -117,10 +117,10 @@ class RagService:
 
         prompt = self._build_prompt(request.query, sources)
         try:
-            answer = await self._ollama_client.generate(prompt)
+            answer = await self._llm_client.generate(prompt)
             if not answer:
-                raise ValueError("Ollama returned an empty response.")
-            generated_by = f"ollama:{self._ollama_client.model}"
+                raise ValueError("LLM returned an empty response.")
+            generated_by = self._llm_client.label
             llm_error = None
         except Exception as exc:
             answer = self._build_answer(request.query, sources)
@@ -190,15 +190,47 @@ class RagService:
             f"{source.citation_label} {source.title}\n{source.content}"
             for source in sources
         )
+        answer_focus = self._answer_focus(query)
+        focus_instruction = (
+            f"Required answer focus: {', '.join(answer_focus)}.\n"
+            if answer_focus
+            else ""
+        )
         return (
-            "You are a retrieval-augmented QA assistant. Answer the question using ONLY "
-            "the provided context. If the context does not contain the answer, say that "
+            "You are a retrieval-augmented QA assistant. Answer the question based on the "
+            "provided context, and do not invent facts that are not supported by the "
+            "context. You may paraphrase and combine information from multiple context "
+            "chunks instead of copying the original wording. The final answer must directly "
+            "answer the user's question and include every required answer focus when the "
+            "context supports it. If the context does not contain enough evidence, say that "
             "the answer was not found in the uploaded documents. Keep the answer concise, "
-            "and cite supporting sources with labels like [1] or [2].\n\n"
+            "answer in the same language as the question, and cite supporting sources with "
+            "labels like [1] or [2].\n\n"
+            f"{focus_instruction}"
             f"Question:\n{query}\n\n"
             f"Context:\n{context}\n\n"
             "Answer:"
         )
+
+    def _answer_focus(self, query: str) -> list[str]:
+        lowered = query.lower()
+        focus_patterns = [
+            ("year", ("\u54ea\u4e00\u5e74", "\u51e0\u5e74", "\u4f55\u5e74", "\u5e74\u4efd", "\u5e74\u5ea6", "year")),
+            ("time", ("\u4ec0\u4e48\u65f6\u5019", "\u4f55\u65f6", "\u65f6\u95f4", "when")),
+            ("method", ("\u4ec0\u4e48\u65b9\u5f0f", "\u54ea\u79cd\u65b9\u5f0f", "\u4f55\u79cd\u65b9\u5f0f", "\u4ee5\u4f55\u65b9\u5f0f", "\u65b9\u5f0f", "method", "how")),
+            ("place", ("\u54ea\u91cc", "\u5728\u54ea", "\u5730\u70b9", "\u4f4d\u7f6e", "\u5730\u65b9", "where", "place")),
+            ("person", ("\u8c01", "\u54ea\u4f4d", "\u4f55\u4eba", "who")),
+            ("reason", ("\u4e3a\u4ec0\u4e48", "\u4e3a\u4f55", "\u539f\u56e0", "reason", "why")),
+            ("number", ("\u591a\u5c11", "\u51e0\u4e2a", "\u51e0\u79cd", "\u6570\u91cf", "how many", "number")),
+            ("result", ("\u7ed3\u679c", "\u53d8\u5316", "\u5f71\u54cd", "\u4f5c\u7528", "result", "outcome")),
+        ]
+
+        focus = []
+        for label, patterns in focus_patterns:
+            if any(pattern in lowered for pattern in patterns):
+                focus.append(label)
+
+        return focus
 
     def _build_answer(self, query: str, sources: list[SourceDocument]) -> str:
         top_sources = sources[:3]
@@ -262,3 +294,4 @@ class RagService:
         if request.retrieval_mode == "auto":
             return choose_auto_retrieval_mode(document_type=document_type)
         return request.retrieval_mode
+

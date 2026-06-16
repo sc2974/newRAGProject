@@ -8,10 +8,15 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     chroma_persist_dir: str = "./storage/chroma"
     document_storage_dir: str = "./storage/documents"
+    llm_provider: str = "dashscope"
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen2.5:0.5b"
     ollama_embedding_model: str = "qwen3-embedding:0.6b"
     ollama_timeout_seconds: float = 180
+    dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    dashscope_api_key: str = ""
+    dashscope_model: str = "qwen3-max"
+    dashscope_timeout_seconds: float = 180
     semantic_reranker_model: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
     semantic_reranker_max_length: int = 512
     semantic_reranker_candidate_limit: int = 8
@@ -27,7 +32,7 @@ class Settings(BaseSettings):
         return value
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "backend/.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

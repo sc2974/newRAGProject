@@ -35,12 +35,29 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-## Ollama
+## LLM and Embeddings
 
-The current demo uses Ollama for both generation and embeddings:
+The current demo supports DashScope for answer generation and Ollama for embeddings:
 
-- Generation model: `qwen2.5:0.5b`
+- Generation provider: `dashscope`
+- Generation model: `qwen3-max`
+- Embedding provider: `ollama`
 - Embedding model: `qwen3-embedding:0.6b`
+
+Create `backend/.env` from `.env.example`, then set:
+
+```powershell
+LLM_PROVIDER=dashscope
+DASHSCOPE_API_KEY=your_dashscope_api_key
+DASHSCOPE_MODEL=qwen3-max
+```
+
+To temporarily use local Ollama generation instead:
+
+```powershell
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=qwen2.5:0.5b
+```
 
 After changing the embedding model or chunking strategy, call:
 
