@@ -1,4 +1,9 @@
 import time
+from pathlib import Path
+
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnableLambda
 
 from app.schemas.rag import AskRequest, AskResponse, RetrievalMode, RerankMode, SourceDocument
 from app.retrieval.bm25_retriever import BM25Retriever
@@ -24,13 +29,24 @@ class RagService:
         self._keyword_reranker = KeywordOverlapReranker()
         self._semantic_reranker = get_semantic_reranker()
         self._last_documents = []
+        self._generation_chain = self._build_generation_chain()
 
     async def ask(self, request: AskRequest) -> AskResponse:
         documents = await self._document_service.list_documents()
         self._last_documents = documents
         document_type = infer_corpus_document_type(documents)
         retrieval_mode = self._resolve_retrieval_mode(request, document_type)
+        hyde_query, hyde_ms, hyde_error = await self._generate_hyde_query(request)
         results, retrieval_ms = await self._search(request, retrieval_mode, documents)
+        if hyde_query:
+            hyde_results, hyde_retrieval_ms = await self._search_text(
+                query=hyde_query,
+                retrieval_mode=retrieval_mode,
+                documents=documents,
+                limit=request.candidate_limit,
+            )
+            retrieval_ms += hyde_retrieval_ms
+            results = self._merge_hyde_results(results, hyde_results)
         rerank_mode = self._requested_rerank_mode(request)
         max_score = self._max_score(results)
         if not results:
@@ -49,8 +65,12 @@ class RagService:
                 rerank=rerank_mode != "none",
                 rerank_mode=rerank_mode,
                 retrieval_ms=retrieval_ms,
+                hyde_ms=hyde_ms,
                 rerank_ms=0.0,
                 total_retrieval_ms=retrieval_ms,
+                hyde=request.hyde,
+                hyde_query=hyde_query,
+                hyde_error=hyde_error,
             )
 
         score_threshold = self._effective_score_threshold(request, retrieval_mode)
@@ -76,8 +96,12 @@ class RagService:
                 rerank=rerank_mode != "none",
                 rerank_mode=rerank_mode,
                 retrieval_ms=retrieval_ms,
+                hyde_ms=hyde_ms,
                 rerank_ms=0.0,
                 total_retrieval_ms=retrieval_ms,
+                hyde=request.hyde,
+                hyde_query=hyde_query,
+                hyde_error=hyde_error,
             )
 
         rerank_mode = self._resolve_rerank_mode(request, retrieval_mode, results)
@@ -115,9 +139,14 @@ class RagService:
                 )
             )
 
-        prompt = self._build_prompt(request.query, sources)
         try:
-            answer = await self._llm_client.generate(prompt)
+            answer = await self._generation_chain.ainvoke(
+                {
+                    "query": request.query,
+                    "context": self._build_context(sources),
+                    "answer_focus": self._format_answer_focus(request.query),
+                }
+            )
             if not answer:
                 raise ValueError("LLM returned an empty response.")
             generated_by = self._llm_client.label
@@ -139,10 +168,14 @@ class RagService:
             rerank=rerank_mode != "none",
             rerank_mode=rerank_mode,
             retrieval_ms=retrieval_ms,
+            hyde_ms=hyde_ms,
             rerank_ms=rerank_ms,
-            total_retrieval_ms=retrieval_ms + rerank_ms,
+            total_retrieval_ms=retrieval_ms + hyde_ms + rerank_ms,
             generated_by=generated_by,
             llm_error=llm_error,
+            hyde=request.hyde,
+            hyde_query=hyde_query,
+            hyde_error=hyde_error,
         )
 
     async def _search(
@@ -174,6 +207,93 @@ class RagService:
         results = hybrid_retriever.search(request.query, request.candidate_limit)
         return results, (time.perf_counter() - started) * 1000
 
+    async def _search_text(
+        self,
+        *,
+        query: str,
+        retrieval_mode: RetrievalMode,
+        documents,
+        limit: int,
+    ):
+        request = AskRequest(
+            query=query,
+            retrieval_mode=retrieval_mode,
+            candidate_limit=limit,
+            limit=min(limit, 10),
+            hyde=False,
+        )
+        return await self._search(request, retrieval_mode, documents)
+
+    async def _generate_hyde_query(self, request: AskRequest) -> tuple[str | None, float, str | None]:
+        if not request.hyde:
+            return None, 0.0, None
+
+        started = time.perf_counter()
+        try:
+            hyde_query = await self._llm_client.generate(self._build_hyde_prompt(request.query))
+            hyde_query = self._clean_hyde_query(hyde_query)
+            if not hyde_query:
+                raise ValueError("LLM returned an empty HyDE hypothesis.")
+            return hyde_query, (time.perf_counter() - started) * 1000, None
+        except Exception as exc:
+            return None, (time.perf_counter() - started) * 1000, str(exc)
+
+    def _build_hyde_prompt(self, query: str) -> str:
+        return (
+            "You are generating a HyDE retrieval hypothesis, not the final answer.\n"
+            "Write a short, factual-looking passage that could plausibly appear in a source "
+            "document answering the user's question. The passage is only used for semantic "
+            "retrieval, so include likely entities, dates, aliases, technical terms, and "
+            "relationships. Do not add citations. Do not say you are uncertain. Keep it under "
+            "120 words. Use the same language as the question when possible.\n\n"
+            f"Question: {query}\n\n"
+            "Hypothetical source passage:"
+        )
+
+    def _clean_hyde_query(self, text: str) -> str:
+        normalized = " ".join(text.strip().split())
+        prefixes = (
+            "Hypothetical source passage:",
+            "HyDE:",
+            "假设答案：",
+            "假设文档：",
+        )
+        for prefix in prefixes:
+            if normalized.startswith(prefix):
+                normalized = normalized[len(prefix):].strip()
+        return normalized[:1000]
+
+    def _merge_hyde_results(self, original_results, hyde_results):
+        combined = {}
+        for rank, result in enumerate(original_results, start=1):
+            result.metadata["original_rank"] = float(rank)
+            result.metadata["original_score"] = result.score or 0.0
+            combined[result.id] = result
+
+        for rank, hyde_result in enumerate(hyde_results, start=1):
+            existing = combined.get(hyde_result.id)
+            hyde_result.metadata["hyde_rank"] = float(rank)
+            hyde_result.metadata["hyde_score"] = hyde_result.score or 0.0
+            if existing is None:
+                hyde_result.retrieval_method = f"{hyde_result.retrieval_method}+hyde"
+                combined[hyde_result.id] = hyde_result
+                continue
+
+            existing.metadata["hyde_rank"] = float(rank)
+            existing.metadata["hyde_score"] = hyde_result.score or 0.0
+            existing.retrieval_method = f"{existing.retrieval_method}+hyde"
+            if existing.score is not None and hyde_result.score is not None:
+                existing.score = max(existing.score, hyde_result.score)
+
+        return sorted(
+            combined.values(),
+            key=lambda result: (
+                result.score if result.score is not None else 0.0,
+                -result.metadata.get("hyde_rank", 9999.0),
+            ),
+            reverse=True,
+        )
+
     def _effective_score_threshold(
         self,
         request: AskRequest,
@@ -185,32 +305,45 @@ class RagService:
             return 0.25
         return None
 
-    def _build_prompt(self, query: str, sources: list[SourceDocument]) -> str:
-        context = "\n\n".join(
+    def _build_generation_chain(self):
+        prompt_template = PromptTemplate.from_template(self._load_rag_prompt_template())
+        return prompt_template | RunnableLambda(self._generate_from_prompt) | StrOutputParser()
+
+    def _load_rag_prompt_template(self) -> str:
+        prompt_path = Path(__file__).resolve().parents[1] / "prompts" / "rag_answer.txt"
+        try:
+            return prompt_path.read_text(encoding="utf-8")
+        except OSError:
+            return (
+                "You are a retrieval-augmented QA assistant. Answer the question based on the "
+                "provided context, and do not invent facts that are not supported by the "
+                "context. You may paraphrase and combine information from multiple context "
+                "chunks instead of copying the original wording. The final answer must directly "
+                "answer the user's question and include every required answer focus when the "
+                "context supports it. If the context does not contain enough evidence, say that "
+                "the answer was not found in the uploaded documents. Keep the answer concise, "
+                "answer in the same language as the question, and cite supporting sources with "
+                "labels like [1] or [2].\n\n"
+                "Required answer focus: {answer_focus}.\n"
+                "Question:\n{query}\n\n"
+                "Context:\n{context}\n\n"
+                "Answer:"
+            )
+
+    async def _generate_from_prompt(self, prompt_value) -> str:
+        return await self._llm_client.generate(prompt_value.to_string())
+
+    def _build_context(self, sources: list[SourceDocument]) -> str:
+        return "\n\n".join(
             f"{source.citation_label} {source.title}\n{source.content}"
             for source in sources
         )
+
+    def _format_answer_focus(self, query: str) -> str:
         answer_focus = self._answer_focus(query)
-        focus_instruction = (
-            f"Required answer focus: {', '.join(answer_focus)}.\n"
-            if answer_focus
-            else ""
-        )
-        return (
-            "You are a retrieval-augmented QA assistant. Answer the question based on the "
-            "provided context, and do not invent facts that are not supported by the "
-            "context. You may paraphrase and combine information from multiple context "
-            "chunks instead of copying the original wording. The final answer must directly "
-            "answer the user's question and include every required answer focus when the "
-            "context supports it. If the context does not contain enough evidence, say that "
-            "the answer was not found in the uploaded documents. Keep the answer concise, "
-            "answer in the same language as the question, and cite supporting sources with "
-            "labels like [1] or [2].\n\n"
-            f"{focus_instruction}"
-            f"Question:\n{query}\n\n"
-            f"Context:\n{context}\n\n"
-            "Answer:"
-        )
+        if not answer_focus:
+            return "directly answer the user's question"
+        return ", ".join(answer_focus)
 
     def _answer_focus(self, query: str) -> list[str]:
         lowered = query.lower()

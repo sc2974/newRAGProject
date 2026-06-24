@@ -47,3 +47,6 @@ class NoteService:
 
         del self._notes[note_id]
         return NoteDeleteResponse(id=note_id, deleted=True)
+
+
+note_service = NoteService()

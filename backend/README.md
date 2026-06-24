@@ -15,6 +15,7 @@ FastAPI service skeleton for the RAG demo.
 - `DELETE /api/documents/{document_id}`
 - `POST /api/llm/ask`
 - `POST /api/rag/ask`
+- `POST /api/agent/ask`
 - `POST /api/chat/sessions`
 - `GET /api/chat/sessions`
 - `GET /api/chat/sessions/{session_id}`

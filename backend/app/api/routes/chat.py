@@ -7,10 +7,9 @@ from app.schemas.chat import (
     ChatSessionCreate,
     ChatSessionRead,
 )
-from app.services.chat_service import ChatService
+from app.services.chat_service import chat_service
 
 router = APIRouter()
-chat_service = ChatService()
 
 
 @router.post("/sessions", response_model=ChatSessionRead)

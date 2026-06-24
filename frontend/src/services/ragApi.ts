@@ -26,10 +26,14 @@ export interface AskResponse {
   rerank: boolean;
   rerank_mode: "none" | "keyword" | "semantic";
   retrieval_ms?: number | null;
+  hyde_ms?: number | null;
   rerank_ms?: number | null;
   total_retrieval_ms?: number | null;
   generated_by: string;
   llm_error?: string | null;
+  hyde: boolean;
+  hyde_query?: string | null;
+  hyde_error?: string | null;
 }
 
 export async function askRag(
@@ -40,6 +44,7 @@ export async function askRag(
     candidateLimit?: number;
     rerank?: boolean;
     rerankMode?: "none" | "keyword" | "semantic" | "auto";
+    hyde?: boolean;
   }
 ): Promise<AskResponse> {
   const response = await apiClient.post<AskResponse>("/rag/ask", {
@@ -54,7 +59,8 @@ export async function askRag(
       ? {}
       : { candidate_limit: options.candidateLimit }),
     ...(options?.rerank === undefined ? {} : { rerank: options.rerank }),
-    ...(options?.rerankMode === undefined ? {} : { rerank_mode: options.rerankMode })
+    ...(options?.rerankMode === undefined ? {} : { rerank_mode: options.rerankMode }),
+    ...(options?.hyde === undefined ? {} : { hyde: options.hyde })
   });
   return response.data;
 }

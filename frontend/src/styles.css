@@ -275,6 +275,8 @@ h3 {
 }
 
 .chat-panel {
+  display: flex;
+  flex-direction: column;
   min-height: 680px;
 }
 
@@ -302,10 +304,14 @@ h3 {
   display: grid;
   align-content: start;
   gap: 12px;
+  flex: 0 0 auto;
+  height: clamp(320px, 48vh, 560px);
   min-height: 260px;
   border: 1px solid #dfe8dd;
   border-radius: 8px;
   background: #f9fbf6;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px;
   margin-bottom: 14px;
 }
@@ -328,6 +334,8 @@ h3 {
 .message p {
   margin-bottom: 0;
   line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .message.user {
@@ -349,6 +357,65 @@ h3 {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.main-actions button {
+  min-width: 140px;
+}
+
+.unified-chat-form {
+  border: 1px solid #dfe8dd;
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(39, 98, 70, 0.08), transparent 42%),
+    #fbfdf9;
+  padding: 14px;
+}
+
+.route-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #4f6255;
+  font-size: 13px;
+}
+
+.route-summary span,
+.route-summary strong {
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+
+.route-summary span {
+  color: #ffffff;
+  background: #276246;
+  font-weight: 800;
+}
+
+.route-summary strong {
+  color: #224a35;
+  background: #e4ede4;
+}
+
+.debug-routes {
+  border-top: 1px dashed #cfdccd;
+  margin-top: 4px;
+  padding-top: 10px;
+}
+
+.debug-routes summary {
+  color: #607064;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.debug-route-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 10px;
 }
 
 .retrieval-mode-control {
@@ -398,6 +465,24 @@ h3 {
   border: 1px solid #ead596;
   border-radius: 8px;
   padding: 10px;
+}
+
+.hyde-box {
+  border: 1px dashed #c8d8c4;
+  border-radius: 8px;
+  background: #f2f7ef;
+  margin: 10px 0 12px;
+  padding: 12px;
+}
+
+.hyde-box h4 {
+  color: #273b2e;
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+.hyde-box p {
+  margin-bottom: 0;
 }
 
 .retrieval-status {
@@ -465,6 +550,40 @@ h3 {
   margin: 8px 0 0;
 }
 
+.agent-steps {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.agent-steps h4 {
+  color: #273b2e;
+  font-size: 14px;
+  margin: 0;
+}
+
+.agent-steps article {
+  border: 1px solid #dfe8dd;
+  border-radius: 8px;
+  background: #f7faf4;
+  padding: 12px;
+}
+
+.agent-steps article strong,
+.agent-steps article span {
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.agent-steps article span {
+  color: #607064;
+  font-size: 12px;
+}
+
+.agent-tool-output {
+  max-height: 420px;
+}
+
 .source-chunk {
   background: #eef5ea;
   border: 1px solid #d8e4d5;
@@ -497,5 +616,10 @@ h3 {
 
   .chat-panel {
     min-height: auto;
+  }
+
+  .message-list {
+    height: min(54vh, 460px);
+    min-height: 240px;
   }
 }

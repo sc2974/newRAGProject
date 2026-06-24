@@ -30,6 +30,11 @@ export async function listChatSessions(): Promise<ChatSession[]> {
   return response.data;
 }
 
+export async function getChatSession(sessionId: string): Promise<ChatSession> {
+  const response = await apiClient.get<ChatSession>(`/chat/sessions/${sessionId}`);
+  return response.data;
+}
+
 export async function sendChatMessage(
   sessionId: string,
   content: string

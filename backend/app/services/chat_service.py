@@ -52,9 +52,40 @@ class ChatService:
         session.updated_at = datetime.now(timezone.utc)
         return ChatReplyResponse(session=session, reply=reply)
 
+    async def add_exchange(
+        self,
+        session_id: str,
+        user_content: str,
+        assistant_content: str,
+    ) -> ChatReplyResponse | None:
+        session = self._sessions.get(session_id)
+        if session is None:
+            return None
+
+        now = datetime.now(timezone.utc)
+        user_message = ChatMessage(
+            id=new_id("msg"),
+            role="user",
+            content=user_content,
+            created_at=now,
+        )
+        reply = ChatMessage(
+            id=new_id("msg"),
+            role="assistant",
+            content=assistant_content,
+            created_at=datetime.now(timezone.utc),
+        )
+
+        session.messages.extend([user_message, reply])
+        session.updated_at = datetime.now(timezone.utc)
+        return ChatReplyResponse(session=session, reply=reply)
+
     async def delete_session(self, session_id: str) -> ChatDeleteResponse | None:
         if session_id not in self._sessions:
             return None
 
         del self._sessions[session_id]
         return ChatDeleteResponse(id=session_id, deleted=True)
+
+
+chat_service = ChatService()

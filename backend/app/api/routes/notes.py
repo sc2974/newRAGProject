@@ -6,10 +6,9 @@ from app.schemas.notes import (
     NoteRead,
     NoteUpdate,
 )
-from app.services.note_service import NoteService
+from app.services.note_service import note_service
 
 router = APIRouter()
-note_service = NoteService()
 
 
 @router.post("/", response_model=NoteRead)

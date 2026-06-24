@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     dashscope_api_key: str = ""
     dashscope_model: str = "qwen3-max"
     dashscope_timeout_seconds: float = 180
+    agent_max_iterations: int = 5
     semantic_reranker_model: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
     semantic_reranker_max_length: int = 512
     semantic_reranker_candidate_limit: int = 8

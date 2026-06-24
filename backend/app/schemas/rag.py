@@ -18,6 +18,7 @@ class AskRequest(BaseModel):
     retrieval_mode: RequestedRetrievalMode = "vector"
     rerank: bool = False
     rerank_mode: RequestedRerankMode | None = None
+    hyde: bool = True
 
 
 class SourceDocument(BaseModel):
@@ -46,7 +47,11 @@ class AskResponse(BaseModel):
     rerank: bool = False
     rerank_mode: RerankMode = "none"
     retrieval_ms: float | None = None
+    hyde_ms: float | None = None
     rerank_ms: float | None = None
     total_retrieval_ms: float | None = None
     generated_by: str = "retrieval-template"
     llm_error: str | None = None
+    hyde: bool = False
+    hyde_query: str | None = None
+    hyde_error: str | None = None
